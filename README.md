@@ -32,7 +32,7 @@ Integrations: Microsoft Power Automate & Microsoft Teams Webhooks
 
 Clone the repository:
 
-git clone https://github.com/YOUR_USERNAME/metageeks-hr.git
+git clone https://github.com/Dhanush-2k22/metageeks-hr.git
 cd metageeks-hr/frontend
 
 
