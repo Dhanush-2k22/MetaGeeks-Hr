@@ -1,0 +1,61 @@
+import json
+import boto3
+import os
+import uuid
+from datetime import datetime
+
+dynamodb = boto3.resource('dynamodb')
+table_name = os.environ.get('DYNAMODB_TABLE_REVIEWS', 'SprintReviews')
+
+def lambda_handler(event, context):
+    try:
+        body = json.loads(event.get('body', '{}'))
+        intern_email = body.get('intern_email')
+        intern_name = body.get('intern_name')
+        reviewer_email = body.get('reviewer_email')
+        metrics = body.get('metrics', {}) # Expected: {"Code Quality": 5, "Communication": 4, ...}
+
+        if not intern_email or not metrics:
+            return {
+                "statusCode": 400,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"status": "error", "message": "Missing required fields or performance metrics."})
+            }
+
+        # Calculate average score server-side
+        score_values = list(metrics.values())
+        calculated_avg = round(sum(score_values) / len(score_values), 2) if score_values else 0.0
+
+        review_id = f"REV-{uuid.uuid4().hex[:6].upper()}"
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+        table = dynamodb.Table(table_name)
+        table.put_item(
+            Item={
+                'InternEmail': intern_email,
+                'ReviewTimestamp': timestamp,
+                'ReviewID': review_id,
+                'InternName': intern_name,
+                'ReviewerEmail': reviewer_email,
+                'Metrics': metrics,
+                'CalculatedAverage': str(calculated_avg)
+            }
+        )
+
+        return {
+            "statusCode": 201,
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({
+                "status": "success",
+                "message": "Sprint review logged successfully.",
+                "review_id": review_id,
+                "calculated_average": calculated_avg
+            })
+        }
+
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"status": "error", "message": str(e)})
+        }
